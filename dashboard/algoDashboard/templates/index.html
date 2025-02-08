@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Option Greeks Dashboard</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+
+        .container {
+            max-width: 95%; /* Adjusted width for a wider layout */
+            margin: 0 auto;
+            padding: 30px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+            margin-top: 50px;
+        }
+
+        h1 {
+            color: #444;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+
+        .form-section {
+            margin: 20px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        select, input {
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            width: 48%;
+            background-color: #fafafa;
+            font-size: 16px;
+        }
+
+        /* Add height constraint for the table */
+        .scrollable-table {
+            max-height: 600px;
+            overflow-y: auto;
+            overflow-x: auto; /* Ensure horizontal scrolling */
+            display: block;
+            margin-top: 20px;
+            border: 1px solid #ccc;
+        }
+
+        /* Proper table layout and styling */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        /* Ensure top headers (CALL/PUT) and Volume/Delta row have the same background */
+        table thead th {
+            position: sticky;
+            top: 0;
+            background-color: #4e73df;
+            color: white;
+            z-index: 10;
+            padding: 14px;
+        }
+
+        thead tr:nth-child(2) th {
+            position: sticky;
+            top: 44px; /* Adjust this value based on the height of the first header row */
+            z-index: 1;
+            background-color: #4e73df; /* Make the color same as CALL/PUT header row */
+            color: white;
+        }
+
+        /* Strike Price column style */
+        table td:nth-child(7), table th:nth-child(7) {
+            background-color: #f2f2f2; /* Light gray background for Strike Price column */
+        }
+
+        /* Table styling */
+        table th, table td {
+            padding: 12px;
+            text-align: center;
+            border: 1px solid #ddd;
+            white-space: nowrap; /* Prevent text overlap */
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8f8f8;
+        }
+
+        tbody tr:nth-child(odd) {
+            background-color: #ffffff;
+        }
+
+        tbody tr:hover {
+            background-color: #e9e9e9;
+        }
+
+        /* Ensure that cells do not overlap */
+        td, th {
+            white-space: nowrap;
+        }
+
+        .message {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+
+        .error-message {
+            color: #d9534f;
+        }
+
+        .success-message {
+            color: #5cb85c;
+        }
+
+        /* Sticky the top two header rows (CALL/PUT and Volume/Delta/Gamma etc.) */
+        thead tr:first-child th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background-color: #4e73df;
+        }
+
+        thead tr:nth-child(2) th {
+            position: sticky;
+            top: 44px; /* Adjust this value based on the height of the first header row */
+            z-index: 1;
+            background-color: #4e73df;
+        }
+
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        function fetchOptionData() {
+            $.getJSON('/get_data', function(response) {
+                var data = response.data;
+                var dataFound = response.data_found;
+                var message = response.message;
+
+                var tableBody = '';
+
+                if (dataFound) {
+                    var groupedData = {};
+                    data.forEach(function(option) {
+                        var strike = option.strikePrice;
+                        if (!groupedData[strike]) {
+                            groupedData[strike] = { 'CE': {}, 'PE': {} };
+                        }
+                        groupedData[strike][option.optionType] = option;
+                    });
+
+                    Object.keys(groupedData).sort((a, b) => parseFloat(a) - parseFloat(b)).forEach(function(strike) {
+                        var callOption = groupedData[strike]['CE'] || {};
+                        var putOption = groupedData[strike]['PE'] || {};
+
+                        tableBody += `<tr>
+                            <td>${callOption.tradeVolume || ''}</td>
+                            <td>${callOption.delta || ''}</td>
+                            <td>${callOption.gamma || ''}</td>
+                            <td>${callOption.theta || ''}</td>
+                            <td>${callOption.vega || ''}</td>
+                            <td>${callOption.impliedVolatility || ''}</td>
+                            <td>${strike}</td>
+                            <td>${putOption.impliedVolatility || ''}</td>
+                            <td>${putOption.vega || ''}</td>
+                            <td>${putOption.theta || ''}</td>
+                            <td>${putOption.gamma || ''}</td>
+                            <td>${putOption.delta || ''}</td>
+                            <td>${putOption.tradeVolume || ''}</td>
+                        </tr>`;
+                    });
+                } else {
+                    tableBody = '<tr><td colspan="13">No data found for the selected stock and expiry</td></tr>';
+                }
+
+                $('#optionTable tbody').html(tableBody);
+                $('#message').html(message).removeClass("success-message error-message").addClass(dataFound ? "success-message" : "error-message");
+            });
+        }
+
+        $(document).ready(function() {
+            setInterval(fetchOptionData, 1000);
+        });
+    </script>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Option Greeks Dashboard</h1>
+        <form method="POST">
+            <div class="form-section">
+                <select name="stock" id="stock" onchange="this.form.submit()">
+                    <option value="--selected stock--">--Select Stock--</option>
+                    {% for stock in stock_names %}
+                        <option value="{{ stock }}" {% if stock == selected_stock %} selected {% endif %}>
+                            {{ stock }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                {% if expiry_dates %}
+                <select name="expiry" id="expiry" onchange="this.form.submit()">
+                    <option value="--selected expiry--">--Select Expiry--</option>
+                    {% for expiry in expiry_dates %}
+                        <option value="{{ expiry }}" {% if expiry == selected_expiry %} selected {% endif %}>
+                            {{ expiry.strftime('%d-%b-%Y') }}
+                        </option>
+                    {% endfor %}
+                </select>
+                {% endif %}
+            </div>
+        </form>
+
+        <div class="message" id="message">Waiting for data...</div>
+
+        <div class="scrollable-table">
+            <table id="optionTable">
+                <thead>
+                    <tr>
+                        <th colspan="6">CALL</th>
+                        <th>Strike Price</th>
+                        <th colspan="6">PUT</th>
+                    </tr>
+                    <tr>
+                        <th>Volume</th>
+                        <th>Delta</th>
+                        <th>Gamma</th>
+                        <th>Theta</th>
+                        <th>Vega</th>
+                        <th>IV</th>
+                        <th></th>
+                        <th>IV</th>
+                        <th>Vega</th>
+                        <th>Theta</th>
+                        <th>Gamma</th>
+                        <th>Delta</th>
+                        <th>Volume</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Data will be loaded here dynamically using AJAX -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+
+</html>
