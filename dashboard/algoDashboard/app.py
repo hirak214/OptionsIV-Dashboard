@@ -185,7 +185,7 @@ def main():
             intializeSymbolTokenMap()
 
             # Start Flask app in a separate thread
-            flask_thread = threading.Thread(target=lambda: app.run(use_reloader=False, host='0.0.0.0', port=5006))
+            flask_thread = threading.Thread(target=lambda: app.run(use_reloader=False, host='0.0.0.0', port=5789))
             flask_thread.start()
 
             # Run the loop indefinitely
