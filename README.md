@@ -110,3 +110,11 @@ To get started with this repository, follow these steps:
 
 ## cd dashboard/algoDashboard
 how to run dashboard:  python app.py
+
+## Put your Credentials in .env 
+  Copy and paste this a .env file and add credentials:
+  
+    API_KEY = ''
+    CLIENT_CODE = ''
+    PASSWORD = ''
+    TOTP_SECRET = ''
